@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Candle Blaze</title>
+<style>
+  :root {
+    --gold: #f4c86a;
+    --white: #fdf6ec;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Segoe UI', Tahoma, Verdana, sans-serif;
+    background:
+      radial-gradient(ellipse at 50% 0%, #6a4658 0%, #3a2440 45%, #241528 100%);
+    color: var(--white);
+    overflow-x: hidden;
+    padding: 16px;
+  }
+  #app {
+    width: 100%;
+    max-width: 480px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+  h1 {
+    margin: 4px 0 0 0;
+    font-size: 1.7rem;
+    letter-spacing: 1px;
+    text-shadow: 0 0 16px rgba(244, 200, 106, 0.7);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .subtitle {
+    font-size: 0.78rem;
+    opacity: 0.7;
+    margin-top: -6px;
+    text-align: center;
+  }
+  .hud {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    background: rgba(30, 16, 34, 0.55);
+    border-radius: 14px;
+    padding: 10px 14px;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 4px 22px rgba(0,0,0,0.35);
+  }
+  .hud-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 54px;
+  }
+  .hud-label {
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    opacity: 0.6;
+  }
+  .hud-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--gold);
+  }
+  .substat {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    font-size: 0.72rem;
+    opacity: 0.8;
+    margin-top: -4px;
+  }
+  .substat b { color: var(--gold); }
+  #board {
+    display: grid;
+    gap: 6px;
+    background: rgba(0,0,0,0.28);
+    border: 2px solid rgba(244, 200, 106, 0.25);
+    border-radius: 16px;
+    padding: 10px;
+    box-shadow: inset 0 0 40px rgba(90,50,20,0.35), 0 8px 26px rgba(0,0,0,0.45);
+    touch-action: none;
+  }
+  .cell {
+    width: 52px;
+    height: 52px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+    user-select: none;
+  }
+  .cell.selected { transform: scale(1.12); }
+  .cell.selected::after {
+    content: "";
+    position: absolute;
+    inset: -2px;
+    border-radius: 13px;
+    box-shadow: 0 0 0 3px var(--gold), 0 0 18px rgba(244,200,106,0.85);
+    pointer-events: none;
+  }
+
+  .candle-svg {
+    width: 46px;
+    height: 60px;
+    overflow: visible;
+    filter: drop-shadow(0 4px 5px rgba(0,0,0,0.45));
+  }
+  .jar-body { filter: drop-shadow(0 1px 1px rgba(255,255,255,0.25)); }
+  .label-text {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    font-style: italic;
+    font-weight: 600;
+    fill: #5c4326;
+  }
+  .label-sub { font-family: 'Segoe UI', sans-serif; fill: #9c8158; }
+  .wick-tip { fill: #2a1d12; }
+
+  .flame-group {
+    opacity: 0;
+    transform-origin: 20px 17px;
+    transform-box: fill-box;
+  }
+  .candle.lit .flame-group {
+    opacity: 1;
+    animation: ignite 0.22s ease-out forwards, flicker 0.5s 0.22s infinite alternate;
+  }
+  .candle.lit .flame-outer { animation: flickerBody 0.44s 0.05s infinite alternate ease-in-out; }
+  .candle.lit .flame-core  { animation: flickerBody 0.34s infinite alternate-reverse ease-in-out; }
+  .candle.lit .glow-halo {
+    opacity: 0.5;
+    animation: haloPulse 0.7s 0.15s infinite alternate ease-in-out;
+  }
+  .candle.lit .jar-body, .candle-svg.lit .jar-body {
+    filter: drop-shadow(0 0 6px rgba(255,170,70,0.55));
+  }
+  @keyframes ignite {
+    0% { opacity: 0; transform: scale(0.2) translateY(6px); }
+    60% { opacity: 1; transform: scale(1.22) translateY(-2px); }
+    100% { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  @keyframes flicker {
+    0% { transform: rotate(-3deg) scaleY(1); }
+    100% { transform: rotate(2.5deg) scaleY(1.06); }
+  }
+  @keyframes flickerBody {
+    0% { transform: scaleX(0.92) scaleY(1.04) skewX(-2deg); }
+    100% { transform: scaleX(1.08) scaleY(0.96) skewX(2deg); }
+  }
+  @keyframes haloPulse {
+    0% { opacity: 0.32; transform: scale(0.9); }
+    100% { opacity: 0.62; transform: scale(1.28); }
+  }
+
+  .type-lavender-top { stop-color: #d9bdf0; } .type-lavender-bot { stop-color: #7c56b8; }
+  .type-vanilla-top  { stop-color: #fff8e2; } .type-vanilla-bot  { stop-color: #e8c268; }
+  .type-rose-top     { stop-color: #ffd3de; } .type-rose-bot     { stop-color: #dd5c85; }
+  .type-mint-top     { stop-color: #cdf9de; } .type-mint-bot     { stop-color: #45b878; }
+  .type-cinnamon-top { stop-color: #f7c69a; } .type-cinnamon-bot { stop-color: #b85f22; }
+  .type-ocean-top    { stop-color: #bfe8f7; } .type-ocean-bot    { stop-color: #3a86b3; }
+
+  .cell.melting .flame-group { opacity: 1; animation: blaze 0.95s ease-in forwards; }
+  .cell.melting .glow-halo { animation: haloBlaze 0.95s ease-in forwards; }
+  @keyframes blaze {
+    0% { transform: scale(1); opacity: 1; }
+    35% { transform: scale(2.0) translateY(-6px); opacity: 1; }
+    75% { transform: scale(2.5) translateY(-10px); opacity: 0.9; }
+    100% { transform: scale(0.4) translateY(4px); opacity: 0; }
+  }
+  @keyframes haloBlaze {
+    0% { opacity: 0.5; transform: scale(1); }
+    40% { opacity: 1; transform: scale(2.3); }
+    100% { opacity: 0; transform: scale(3.1); }
+  }
+  .cell.melting .wax-group { transform-origin: 20px 58px; animation: waxMelt 1s ease-in forwards; }
+  @keyframes waxMelt { 0% { transform: scaleY(1); } 100% { transform: scaleY(0.04); } }
+  .cell.melting .wax-fill { animation: waxGlow 1s ease-in forwards; }
+  @keyframes waxGlow {
+    0% { filter: brightness(1) saturate(1); }
+    50% { filter: brightness(1.8) saturate(1.35); }
+    100% { filter: brightness(2.4) saturate(0.6); }
+  }
+  .cell.melting .drip { opacity: 0; animation: dripFall 1s ease-in forwards; }
+  @keyframes dripFall {
+    0% { opacity: 0; transform: translateY(0) scaleY(0.3); }
+    20% { opacity: 1; }
+    100% { opacity: 0; transform: translateY(22px) scaleY(1.6); }
+  }
+  .cell.melting .jar-body { animation: jarShake 0.9s ease-in-out; }
+  @keyframes jarShake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-0.6px); }
+    50% { transform: translateX(0.6px); }
+    75% { transform: translateX(-0.4px); }
+  }
+  .cell.melting { animation: cellFade 1s ease-in forwards; }
+  @keyframes cellFade { 0% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; } }
+
+  #message { min-height: 22px; font-size: 0.92rem; color: var(--gold); text-align: center; }
+  .controls { display: flex; gap: 10px; align-items: center; }
+  button {
+    background: linear-gradient(180deg, #f4c86a, #d99e3a);
+    border: none; color: #2b1a0e; font-weight: 700;
+    padding: 9px 16px; border-radius: 10px; cursor: pointer;
+    font-size: 0.82rem; box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+  }
+  button:hover { filter: brightness(1.08); }
+  .icon-btn {
+    background: rgba(30,16,34,0.6); color: var(--gold);
+    padding: 9px 12px; border: 1px solid rgba(244,200,106,0.35);
+  }
+
+  /* toast (auto-advance / retry messages) */
+  #toast {
+    position: fixed; left: 50%; top: 50%;
+    transform: translate(-50%, -50%) scale(0.9);
+    background: linear-gradient(160deg, rgba(70,44,86,0.96), rgba(30,18,44,0.96));
+    border: 1px solid rgba(244,200,106,0.5);
+    border-radius: 16px; padding: 20px 30px; text-align: center;
+    font-size: 1.15rem; color: var(--gold); font-weight: 700;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+    opacity: 0; pointer-events: none; transition: opacity 0.35s, transform 0.35s; z-index: 20;
+  }
+  #toast.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  #toast small { display:block; font-size: 0.72rem; opacity: 0.8; color: var(--white); font-weight: 400; margin-top: 6px; }
+
+  /* cutscene */
+  #cutscene {
+    position: fixed; inset: 0; background: rgba(10,5,14,0.92);
+    display: none; flex-direction: column; align-items: center; justify-content: center;
+    gap: 14px; z-index: 30;
+  }
+  #cutscene.show { display: flex; }
+  #cut-canvas {
+    width: min(88vw, 420px); height: auto; aspect-ratio: 4 / 3;
+    image-rendering: pixelated; image-rendering: crisp-edges;
+    border: 3px solid rgba(244,200,106,0.5); border-radius: 8px;
+    box-shadow: 0 0 40px rgba(255,170,70,0.25);
+    background: #000;
+  }
+  #cut-caption {
+    font-size: 0.95rem; color: var(--gold); text-align: center;
+    min-height: 22px; letter-spacing: 0.5px; max-width: 90vw;
+  }
+  #cut-skip { background: rgba(30,16,34,0.7); color: var(--gold); border: 1px solid rgba(244,200,106,0.4); }
+
+  /* hold-to-reset button (bottom-right) */
+  #reset-hold {
+    position: fixed; right: 16px; bottom: 16px; z-index: 15;
+    padding: 12px 16px; border-radius: 12px; overflow: hidden;
+    background: rgba(30,16,34,0.82); color: var(--white);
+    border: 1px solid rgba(226,120,120,0.5);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.45);
+    font-weight: 700; font-size: 0.8rem; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 1px;
+    touch-action: none; user-select: none;
+  }
+  #reset-hold:hover { filter: none; }
+  #reset-hold .reset-fill {
+    position: absolute; left: 0; top: 0; bottom: 0; width: 0;
+    background: linear-gradient(90deg, rgba(226,90,90,0.55), rgba(244,140,90,0.55));
+    z-index: 0; transition: width 0s linear;
+  }
+  #reset-hold.holding .reset-fill { width: 100%; transition: width 5s linear; }
+  #reset-hold .reset-label, #reset-hold .reset-sub { position: relative; z-index: 1; line-height: 1.1; }
+  #reset-hold .reset-sub { font-size: 0.6rem; font-weight: 400; opacity: 0.7; }
+  #reset-hold.holding .reset-sub { opacity: 1; color: var(--gold); }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="glassGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.55)"/>
+      <stop offset="18%" stop-color="rgba(255,255,255,0.12)"/>
+      <stop offset="55%" stop-color="rgba(210,220,230,0.10)"/>
+      <stop offset="100%" stop-color="rgba(180,195,210,0.28)"/>
+    </linearGradient>
+    <linearGradient id="lidGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e7e2d8"/>
+      <stop offset="100%" stop-color="#b7ab95"/>
+    </linearGradient>
+    <radialGradient id="flameHot" cx="50%" cy="80%" r="70%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="35%" stop-color="#fff6c8"/>
+      <stop offset="100%" stop-color="#ffd35a" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="flameOuterGrad" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%" stop-color="#ff7b1a"/>
+      <stop offset="45%" stop-color="#ffb238"/>
+      <stop offset="80%" stop-color="#ffe37d"/>
+      <stop offset="100%" stop-color="#fff8dd"/>
+    </linearGradient>
+    <linearGradient id="flameCoreGrad" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%" stop-color="#3b5cff" stop-opacity="0.85"/>
+      <stop offset="35%" stop-color="#ff9a3c"/>
+      <stop offset="100%" stop-color="#fff3c4"/>
+    </linearGradient>
+    <radialGradient id="glowGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="rgba(255,190,90,0.95)"/>
+      <stop offset="60%" stop-color="rgba(255,140,40,0.35)"/>
+      <stop offset="100%" stop-color="rgba(255,140,40,0)"/>
+    </radialGradient>
+    <linearGradient id="wax-lavender" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" class="type-lavender-top"/><stop offset="100%" class="type-lavender-bot"/></linearGradient>
+    <linearGradient id="wax-vanilla" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" class="type-vanilla-top"/><stop offset="100%" class="type-vanilla-bot"/></linearGradient>
+    <linearGradient id="wax-rose" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" class="type-rose-top"/><stop offset="100%" class="type-rose-bot"/></linearGradient>
+    <linearGradient id="wax-mint" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" class="type-mint-top"/><stop offset="100%" class="type-mint-bot"/></linearGradient>
+    <linearGradient id="wax-cinnamon" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" class="type-cinnamon-top"/><stop offset="100%" class="type-cinnamon-bot"/></linearGradient>
+    <linearGradient id="wax-ocean" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" class="type-ocean-top"/><stop offset="100%" class="type-ocean-bot"/></linearGradient>
+  </defs>
+</svg>
+
+<div id="app">
+  <h1>🕯️ Candle Blaze</h1>
+  <div class="subtitle">Match 3+ · light them · melt them · unwind</div>
+
+  <div class="hud">
+    <div class="hud-item"><div class="hud-label">Level</div><div class="hud-value" id="level-val">1</div></div>
+    <div class="hud-item"><div class="hud-label">Score</div><div class="hud-value" id="score-val">0</div></div>
+    <div class="hud-item"><div class="hud-label">Goal</div><div class="hud-value" id="goal-val">260</div></div>
+    <div class="hud-item"><div class="hud-label">Moves</div><div class="hud-value" id="moves-val">9</div></div>
+  </div>
+  <div class="substat">
+    <span>Total ✨ <b id="total-val">0</b></span>
+    <span>Try <b id="try-val">1</b> of 2</span>
+  </div>
+
+  <div id="board"></div>
+  <div id="message"></div>
+  <div class="controls">
+    <button id="restart-btn">Restart Level</button>
+    <button id="mute-btn" class="icon-btn">🔊</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<button id="reset-hold">
+  <span class="reset-fill"></span>
+  <span class="reset-label">Reset to Level 1</span>
+  <span class="reset-sub">hold 5s</span>
+</button>
+
+<div id="cutscene">
+  <canvas id="cut-canvas" width="160" height="120"></canvas>
+  <div id="cut-caption"></div>
+  <button id="cut-skip">Skip ▶</button>
+</div>
+
+<script>
+/* ------------------------------------------------------------------ *
+ *  CANDLE ART
+ * ------------------------------------------------------------------ */
+const TYPES = ['lavender', 'vanilla', 'rose', 'mint', 'cinnamon', 'ocean'];
+const LABELS = {
+  lavender: { title: 'Lavender', sub: 'FIELDS' },
+  vanilla:  { title: 'Vanilla',  sub: 'BEAN' },
+  rose:     { title: 'Rose',     sub: 'PETAL' },
+  mint:     { title: 'Mint',     sub: 'LEAF' },
+  cinnamon: { title: 'Cinnamon', sub: 'SPICE' },
+  ocean:    { title: 'Ocean',    sub: 'BREEZE' },
+};
+const WAX_COLORS = ['#7c56b8', '#e8c268', '#dd5c85', '#45b878', '#b85f22', '#3a86b3'];
+
+function candleSvg(type) {
+  const lab = LABELS[type];
+  return `
+<svg class="candle-svg candle" viewBox="0 0 40 66" xmlns="http://www.w3.org/2000/svg">
+  <g class="flame-group">
+    <circle class="glow-halo" cx="20" cy="7" r="10" fill="url(#glowGrad)"/>
+    <path class="flame-outer" fill="url(#flameOuterGrad)" d="M20,-7 C15,0 12,6 12,10.5 C12,15 15.5,18.5 20,18.5 C24.5,18.5 28,15 28,10.5 C28,6 25,0 20,-7 Z"/>
+    <path class="flame-core" fill="url(#flameCoreGrad)" d="M20,0.5 C17,4.3 15,7.8 15,10.8 C15,13.8 17.2,16 20,16 C22.8,16 25,13.8 25,10.8 C25,7.8 23,4.3 20,0.5 Z"/>
+    <ellipse class="flame-hot" cx="20" cy="12.2" rx="2.1" ry="3.2" fill="url(#flameHot)"/>
+  </g>
+  <rect x="19.3" y="10" width="1.4" height="9" rx="0.5" fill="#2a1d12"/>
+  <ellipse class="wick-tip" cx="20" cy="10" rx="1" ry="1.2"/>
+  <rect class="jar-body" x="5" y="19" width="30" height="44" rx="5" fill="rgba(40,44,56,0.16)" stroke="rgba(255,255,255,0.4)" stroke-width="0.7"/>
+  <g class="wax-group"><rect class="wax-fill" x="6.6" y="20.5" width="26.8" height="41.5" rx="4" fill="url(#wax-${type})"/></g>
+  <path class="drip" d="M9,40 q-1.4,4 0,8 q1.4,-4 0,-8 Z" fill="url(#wax-${type})"/>
+  <rect x="5" y="19" width="30" height="44" rx="5" fill="url(#glassGrad)"/>
+  <rect x="7" y="33" width="26" height="15" rx="1.4" fill="rgba(253,248,236,0.95)" stroke="#c9a24a" stroke-width="0.5"/>
+  <line x1="7" y1="37" x2="33" y2="37" stroke="#c9a24a" stroke-width="0.4"/>
+  <line x1="7" y1="45.5" x2="33" y2="45.5" stroke="#c9a24a" stroke-width="0.4"/>
+  <text class="label-text" x="20" y="42.5" font-size="6" text-anchor="middle" textLength="24" lengthAdjust="spacingAndGlyphs">${lab.title}</text>
+  <text class="label-sub" x="20" y="47" font-size="2.9" text-anchor="middle" textLength="18" lengthAdjust="spacingAndGlyphs">${lab.sub}</text>
+  <rect x="7" y="14.5" width="26" height="5.5" rx="2" fill="url(#lidGrad)" stroke="#948968" stroke-width="0.6"/>
+</svg>`;
+}
+
+/* ------------------------------------------------------------------ *
+ *  ENDLESS LEVEL GENERATION
+ *  Board & variety ramp moderately; moves are DERIVED from the
+ *  candle-count-to-goal ratio so every level stays achievable.
+ * ------------------------------------------------------------------ */
+function genLevel(n) {
+  const size  = Math.min(6 + Math.floor((n - 1) / 3), 8);              // 6→8, every 3 levels
+  const types = Math.min(4 + Math.floor((n - 1) / 2), TYPES.length);   // 4→6, every 2 levels
+  const goal  = Math.round((260 + 180 * (n - 1) + 22 * (n - 1) ** 2) / 10) * 10;
+  const candles = size * size;
+  // A solid move clears ~3 candles at 30 pts; bigger boards cascade more,
+  // so scale the per-move estimate by how many candles are in play.
+  const perMove = 30 * 3 * (candles / 36);
+  // moves = goal / per-move estimate, with a comfort buffer (moderate = 1.35) + cushion
+  const moves = Math.ceil((goal / perMove) * 1.35) + 5;
+  return { n, size, types, goal, moves };
+}
+
+/* ------------------------------------------------------------------ *
+ *  STATE
+ * ------------------------------------------------------------------ */
+let state = {
+  n: 1, size: 6, types: 4, goal: 260, moves: 9,
+  score: 0, total: 0, attempt: 1,
+  grid: [], selected: null, busy: false,
+};
+
+const boardEl = document.getElementById('board');
+const levelValEl = document.getElementById('level-val');
+const scoreValEl = document.getElementById('score-val');
+const goalValEl = document.getElementById('goal-val');
+const movesValEl = document.getElementById('moves-val');
+const totalValEl = document.getElementById('total-val');
+const tryValEl = document.getElementById('try-val');
+const messageEl = document.getElementById('message');
+const toastEl = document.getElementById('toast');
+
+function randType(n) { return Math.floor(Math.random() * n); }
+function idx(r, c) { return r * state.size + c; }
+function sleep(ms) { return new Promise(res => setTimeout(res, ms)); }
+
+function wouldMatchAt(grid, r, c, t) {
+  if (c >= 2 && grid[idx(r, c-1)] === t && grid[idx(r, c-2)] === t) return true;
+  if (r >= 2 && grid[idx(r-1, c)] === t && grid[idx(r-2, c)] === t) return true;
+  return false;
+}
+function createGrid() {
+  const s = state.size;
+  const grid = new Array(s * s).fill(-1);
+  for (let r = 0; r < s; r++)
+    for (let c = 0; c < s; c++) {
+      let t, a = 0;
+      do { t = randType(state.types); a++; } while (wouldMatchAt(grid, r, c, t) && a < 30);
+      grid[idx(r, c)] = t;
+    }
+  return grid;
+}
+
+function setupLevel(n, attempt) {
+  const lvl = genLevel(n);
+  state.n = n;
+  state.size = lvl.size;
+  state.types = lvl.types;
+  state.goal = lvl.goal;
+  state.moves = lvl.moves;
+  state.score = 0;
+  state.attempt = attempt || 1;
+  state.selected = null;
+  state.busy = false;
+  state.grid = createGrid();
+  let tries = 0;
+  while (!hasPossibleMove() && tries < 50) { state.grid = createGrid(); tries++; }
+  render();
+  updateHud();
+  messageEl.textContent = `Level ${n} — reach ${lvl.goal} points`;
+}
+
+function updateHud() {
+  levelValEl.textContent = state.n;
+  scoreValEl.textContent = state.score;
+  goalValEl.textContent = state.goal;
+  movesValEl.textContent = state.moves;
+  totalValEl.textContent = state.total;
+  tryValEl.textContent = state.attempt;
+}
+
+function render() {
+  const s = state.size;
+  boardEl.style.gridTemplateColumns = `repeat(${s}, 52px)`;
+  boardEl.innerHTML = '';
+  for (let r = 0; r < s; r++)
+    for (let c = 0; c < s; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.dataset.r = r; cell.dataset.c = c;
+      const t = state.grid[idx(r, c)];
+      if (t >= 0) cell.insertAdjacentHTML('beforeend', candleSvg(TYPES[t]));
+      cell.addEventListener('click', onCellClick);
+      boardEl.appendChild(cell);
+    }
+}
+
+/* ------------------------------------------------------------------ *
+ *  INPUT
+ * ------------------------------------------------------------------ */
+function onCellClick(e) {
+  initAudio();
+  if (state.busy) return;
+  const r = +e.currentTarget.dataset.r, c = +e.currentTarget.dataset.c;
+  if (!state.selected) {
+    state.selected = { r, c };
+    e.currentTarget.classList.add('selected');
+    return;
+  }
+  const sel = state.selected;
+  const same = sel.r === r && sel.c === c;
+  const adjacent = Math.abs(sel.r - r) + Math.abs(sel.c - c) === 1;
+  clearSelection();
+  if (same) return;
+  if (adjacent) trySwap(sel.r, sel.c, r, c);
+  else { state.selected = { r, c }; e.currentTarget.classList.add('selected'); }
+}
+function clearSelection() {
+  document.querySelectorAll('.cell.selected').forEach(el => el.classList.remove('selected'));
+  state.selected = null;
+}
+function swapGrid(r1, c1, r2, c2) {
+  const i1 = idx(r1, c1), i2 = idx(r2, c2);
+  [state.grid[i1], state.grid[i2]] = [state.grid[i2], state.grid[i1]];
+}
+
+/* ------------------------------------------------------------------ *
+ *  MATCH LOGIC
+ * ------------------------------------------------------------------ */
+function findMatches() {
+  const s = state.size, matched = new Set();
+  for (let r = 0; r < s; r++) {
+    let start = 0;
+    for (let c = 1; c <= s; c++) {
+      const cur = c < s ? state.grid[idx(r, c)] : -999;
+      const prev = state.grid[idx(r, c - 1)];
+      if (cur !== prev) {
+        if (c - start >= 3 && prev >= 0) for (let k = start; k < c; k++) matched.add(idx(r, k));
+        start = c;
+      }
+    }
+  }
+  for (let c = 0; c < s; c++) {
+    let start = 0;
+    for (let r = 1; r <= s; r++) {
+      const cur = r < s ? state.grid[idx(r, c)] : -999;
+      const prev = state.grid[idx(r - 1, c)];
+      if (cur !== prev) {
+        if (r - start >= 3 && prev >= 0) for (let k = start; k < r; k++) matched.add(idx(k, c));
+        start = r;
+      }
+    }
+  }
+  return matched;
+}
+function hasPossibleMove() {
+  const s = state.size;
+  for (let r = 0; r < s; r++)
+    for (let c = 0; c < s; c++) {
+      if (c < s - 1) { swapGrid(r, c, r, c + 1); const m = findMatches(); swapGrid(r, c, r, c + 1); if (m.size) return true; }
+      if (r < s - 1) { swapGrid(r, c, r + 1, c); const m = findMatches(); swapGrid(r, c, r + 1, c); if (m.size) return true; }
+    }
+  return false;
+}
+async function trySwap(r1, c1, r2, c2) {
+  // Committing a candle to be moved always costs a move — match or not.
+  state.busy = true;
+  state.moves--;
+  swapGrid(r1, c1, r2, c2);
+  const matched = findMatches().size > 0;
+  if (!matched) {
+    swapGrid(r1, c1, r2, c2);     // candles slide back, but the move is spent
+    render();
+    messageEl.textContent = "No match — that still used a move";
+    updateHud();
+    await checkEndConditions();
+    if (state.busy) state.busy = false;
+    return;
+  }
+  render();
+  await resolveMatches();
+  updateHud();
+  await checkEndConditions();
+  if (!state.busy) return;      // a flow (win/retry) took over
+  state.busy = false;
+}
+async function resolveMatches() {
+  let combo = 0;
+  while (true) {
+    const matches = findMatches();
+    if (matches.size === 0) break;
+    combo++;
+    const points = matches.size * 30 * combo;
+    state.score += points;
+    messageEl.textContent = combo > 1 ? `Combo x${combo}!  +${points}` : `Melted ${matches.size} candles  +${points}`;
+    playMelt(combo);
+    await animateMelt(matches);
+    dropAndFill(matches);
+    render();
+    await sleep(360);
+    updateHud();
+  }
+}
+function animateMelt(matches) {
+  return new Promise(resolve => {
+    matches.forEach(i => {
+      const r = Math.floor(i / state.size), c = i % state.size;
+      const cellEl = boardEl.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
+      if (cellEl) {
+        const candle = cellEl.querySelector('.candle');
+        if (candle) candle.classList.add('lit');
+        cellEl.classList.add('melting');
+      }
+    });
+    setTimeout(resolve, 800);
+  });
+}
+function dropAndFill(matches) {
+  const s = state.size;
+  for (let c = 0; c < s; c++) {
+    let write = s - 1;
+    for (let r = s - 1; r >= 0; r--) {
+      const i = idx(r, c);
+      if (!matches.has(i)) { state.grid[idx(write, c)] = state.grid[i]; write--; }
+    }
+    for (let r = write; r >= 0; r--) state.grid[idx(r, c)] = randType(state.types);
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ *  FLOW: win / out-of-moves / reshuffle
+ * ------------------------------------------------------------------ */
+async function checkEndConditions() {
+  if (state.score >= state.goal) { await onWin(); return; }
+  if (state.moves <= 0) { await onOutOfMoves(); return; }
+  if (!hasPossibleMove()) {
+    messageEl.textContent = "Reshuffling the shelf…";
+    state.grid = createGrid();
+    let t = 0;
+    while (!hasPossibleMove() && t < 50) { state.grid = createGrid(); t++; }
+    render();
+  }
+}
+async function onWin() {
+  state.busy = true;
+  state.total += state.score;
+  updateHud();
+  playChime();
+  showToast(`Level ${state.n} cleared! ✨`, `+${state.score} · Total ${state.total}`);
+  await sleep(1400);
+  hideToast();
+  const next = state.n + 1;
+  if (state.n % 4 === 0) {
+    const sceneIdx = (Math.floor(state.n / 4) - 1) % 2;   // A, B, A, B …
+    await playCutscene(sceneIdx);
+  }
+  setupLevel(next, 1);
+}
+async function onOutOfMoves() {
+  state.busy = true;
+  if (state.attempt === 1) {
+    showToast('Out of moves 🔥', 'One more try — same level, fresh board');
+    await sleep(1700); hideToast();
+    setupLevel(state.n, 2);
+  } else {
+    showToast('Back to Level 1 🕯️', 'Take a breath — the ride begins again');
+    await sleep(2100); hideToast();
+    state.total = 0;
+    setupLevel(1, 1);
+  }
+}
+function showToast(main, sub) {
+  toastEl.innerHTML = main + (sub ? `<small>${sub}</small>` : '');
+  toastEl.classList.add('show');
+}
+function hideToast() { toastEl.classList.remove('show'); }
+
+/* ------------------------------------------------------------------ *
+ *  AUDIO (Web Audio API — no files)
+ * ------------------------------------------------------------------ */
+let audioCtx = null, muted = false;
+function initAudio() {
+  if (!audioCtx) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+}
+function playMelt(combo) {
+  if (muted || !audioCtx) return;
+  const dur = 0.5;
+  const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * dur, audioCtx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2);
+  const src = audioCtx.createBufferSource(); src.buffer = buf;
+  const flt = audioCtx.createBiquadFilter(); flt.type = 'bandpass';
+  flt.frequency.value = 620 + combo * 120; flt.Q.value = 0.8;
+  const g = audioCtx.createGain(); g.gain.value = 0.22;
+  src.connect(flt); flt.connect(g); g.connect(audioCtx.destination); src.start();
+}
+function playChime() {
+  if (muted || !audioCtx) return;
+  [523.25, 659.25, 783.99].forEach((f, i) => {
+    const o = audioCtx.createOscillator(); o.type = 'sine'; o.frequency.value = f;
+    const g = audioCtx.createGain();
+    const t0 = audioCtx.currentTime + i * 0.09;
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(0.16, t0 + 0.03);
+    g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.6);
+    o.connect(g); g.connect(audioCtx.destination); o.start(t0); o.stop(t0 + 0.65);
+  });
+}
+function playPop() {
+  if (muted || !audioCtx) return;
+  const o = audioCtx.createOscillator(); o.type = 'triangle';
+  const g = audioCtx.createGain(); const t0 = audioCtx.currentTime;
+  o.frequency.setValueAtTime(180, t0); o.frequency.exponentialRampToValueAtTime(90, t0 + 0.12);
+  g.gain.setValueAtTime(0.14, t0); g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.14);
+  o.connect(g); g.connect(audioCtx.destination); o.start(t0); o.stop(t0 + 0.15);
+}
+document.getElementById('mute-btn').addEventListener('click', (e) => {
+  muted = !muted;
+  e.currentTarget.textContent = muted ? '🔇' : '🔊';
+});
+
+/* ------------------------------------------------------------------ *
+ *  8-BIT CUTSCENES (canvas, procedural pixel art)
+ * ------------------------------------------------------------------ */
+const cutEl = document.getElementById('cutscene');
+const cutCanvas = document.getElementById('cut-canvas');
+const cutCtx = cutCanvas.getContext('2d');
+const cutCap = document.getElementById('cut-caption');
+const cutSkip = document.getElementById('cut-skip');
+cutCtx.imageSmoothingEnabled = false;
+
+function px(c, x, y, w, h, col) { c.fillStyle = col; c.fillRect(x | 0, y | 0, Math.ceil(w), Math.ceil(h)); }
+
+function drawNurse(c, fx, fy, headDX, armUp) {
+  // feet at (fx..fx+4, fy)
+  px(c, fx, fy - 3, 2, 3, '#ffffff');       // shoe L
+  px(c, fx + 3, fy - 3, 2, 3, '#ffffff');   // shoe R
+  px(c, fx, fy - 4, 5, 1, '#d8d8d8');
+  px(c, fx, fy - 9, 5, 6, '#2bb3a3');       // scrubs torso
+  px(c, fx, fy - 9, 5, 1, '#1f8d80');       // collar shade
+  px(c, fx + 2, fy - 8, 1, 4, '#1f8d80');   // fold
+  const ay = armUp ? fy - 11 : fy - 9;
+  px(c, fx - 1, ay, 1, armUp ? 3 : 4, '#2bb3a3'); // arm L
+  px(c, fx + 5, ay, 1, armUp ? 3 : 4, '#2bb3a3'); // arm R
+  px(c, fx - 1, ay + (armUp ? 3 : 4), 1, 1, '#f1c393'); // hand L
+  px(c, fx + 5, ay + (armUp ? 3 : 4), 1, 1, '#f1c393'); // hand R
+  const hx = fx + 1 + headDX;
+  px(c, hx, fy - 14, 3, 4, '#f1c393');      // face
+  px(c, hx, fy - 15, 3, 1, '#5a3a24');      // hair
+  px(c, hx - 1, fy - 14, 1, 3, '#5a3a24');  // hair side
+  px(c, hx + 3, fy - 14, 1, 3, '#5a3a24');
+}
+
+function drawBox(c, x, y, w, h) {
+  px(c, x, y, w, h, '#b07a3c');
+  px(c, x, y, w, 2, '#c99a5c');
+  px(c, x + (w >> 1) - 1, y, 2, h, '#8a5a2b');
+  px(c, x, y + (h >> 1) - 1, w, 2, '#8a5a2b');
+  px(c, x + (w >> 1) - 3, y - 1, 6, 2, '#e8d9b5'); // tape
+}
+
+function drawMiniJar(c, x, y, col) {
+  px(c, x, y - 2, 5, 2, '#cfc3a0');     // lid
+  px(c, x - 1, y, 7, 10, col);          // wax
+  px(c, x - 1, y, 7, 2, 'rgba(255,255,255,0.35)');
+  px(c, x, y + 3, 5, 3, '#fdf6ec');     // label
+}
+
+function drawHouse(c) {
+  px(c, 0, 0, 160, 96, '#a9d8ef');      // sky
+  px(c, 0, 90, 160, 30, '#79c04a');     // grass
+  px(c, 0, 90, 160, 2, '#63a83a');
+  // roof (gable)
+  for (let r = 0; r < 16; r++) { const inset = 15 - r; px(c, 40 + inset, 22 + r, 80 - 2 * inset, 1, r < 2 ? '#33333c' : '#4a4a55'); }
+  // body
+  px(c, 42, 38, 76, 54, '#f4efe4');
+  px(c, 108, 38, 10, 54, '#e3dccb');    // right shade
+  // windows + shutters (upstairs)
+  [[52, 46], [92, 46]].forEach(([wx, wy]) => {
+    px(c, wx - 4, wy, 3, 14, '#20242c'); px(c, wx + 14, wy, 3, 14, '#20242c'); // shutters
+    px(c, wx, wy, 14, 14, '#bfe6f2'); px(c, wx + 6, wy, 2, 14, '#e3dccb'); px(c, wx, wy + 6, 14, 2, '#e3dccb');
+  });
+  // downstairs windows (sides of door)
+  [[46, 70], [98, 70]].forEach(([wx, wy]) => {
+    px(c, wx, wy, 12, 16, '#bfe6f2'); px(c, wx + 5, wy, 2, 16, '#e3dccb'); px(c, wx, wy + 7, 12, 2, '#e3dccb');
+  });
+}
+
+/* Scene A: delivery -------------------------------------------------- */
+function drawSceneA(c, t) {
+  drawHouse(c);
+  const DOORX = 74, DOORY = 66, DOORW = 12, DOORH = 26;
+  // door open amount
+  let open = 0;
+  if (t >= 1) open = Math.min((t - 1) / 1, 1);
+  if (t > 6.6) open = Math.max(1 - (t - 6.6) / 1, 0);
+  // dark interior behind door
+  px(c, DOORX, DOORY, DOORW, DOORH, '#241a2a');
+  // door leaf (blue) swinging in from the right edge
+  const leafW = Math.max(1, Math.round(DOORW * (1 - open)));
+  px(c, DOORX + (DOORW - leafW), DOORY, leafW, DOORH, '#2f6fb0');
+  px(c, DOORX + (DOORW - leafW), DOORY, 1, DOORH, '#245586');
+  if (leafW > 2) px(c, DOORX + (DOORW - leafW) + 1, DOORY + 14, 1, 1, '#ffe37d'); // knob
+
+  // box + nurse behaviour
+  let boxX = 72, boxY = 84, boxVisible = true, nurseVisible = open > 0.5;
+  let headDX = 0, armUp = false;
+  let cap = 'A quiet delivery arrives…';
+
+  if (t >= 2.5 && t < 5.5) {              // look both ways ×2
+    const seg = Math.floor((t - 2.5) / 0.75) % 4;
+    headDX = (seg % 2 === 0) ? -2 : 2;
+    cap = 'Coast clear? …checking twice 👀';
+  } else if (t >= 5.5 && t < 6.6) {       // grab
+    armUp = true;
+    const g = (t - 5.5) / 1.1;
+    boxY = 84 - g * 16;                    // box lifts up to her hands
+    cap = 'Got the candles! 📦';
+  } else if (t >= 6.6) {                   // taken inside
+    boxVisible = false;
+    cap = 'Inside they go 🚪';
+  } else if (t >= 2) {
+    cap = 'Someone’s home…';
+  }
+
+  if (boxVisible) drawBox(c, boxX, boxY, 16, 12);
+  if (nurseVisible) drawNurse(c, 78, 88, headDX, armUp);
+
+  cutCap.textContent = cap;
+}
+
+/* Scene B: unbox, smell, stack -------------------------------------- */
+function drawSceneB(c, t) {
+  px(c, 0, 0, 160, 88, '#ece0cc');        // wall
+  px(c, 0, 60, 22, 20, '#bfe6f2');        // little window
+  px(c, 0, 88, 160, 32, '#c79a63');       // floor
+  px(c, 0, 86, 160, 2, '#a97f4a');
+
+  const BX = 66, BY = 60, BW = 24, BH = 20;
+  let cap = 'Home at last — time to unbox 🕯️';
+
+  // box + opening flaps (only before the room fills)
+  if (t < 4.2) {
+    px(c, BX, BY, BW, BH, '#b07a3c');
+    px(c, BX, BY, BW, 2, '#c99a5c');
+    if (t >= 1) {                         // flaps open
+      px(c, BX - 4, BY - 3, 8, 3, '#c99a5c');
+      px(c, BX + BW - 4, BY - 3, 8, 3, '#c99a5c');
+    }
+  }
+
+  // a candle rises out and floats to the nose
+  if (t >= 1 && t < 4.2) {
+    const g = Math.min((t - 1) / 1.4, 1);
+    const cx = BX + 9 + g * 34;
+    const cy = BY - 2 - g * 22;
+    drawMiniJar(c, cx, cy, '#dd5c85');
+    if (t >= 2.4) {                       // scent squiggles
+      cap = 'Mmm… lavender & vanilla 🌸';
+      for (let i = 0; i < 3; i++) {
+        const sy = cy - 4 - ((t * 22 + i * 6) % 14);
+        px(c, cx + 2 + Math.sin((t * 6) + i) * 2, sy, 1, 1, '#c98adf');
+      }
+    } else cap = 'Fresh from the box…';
+  }
+
+  // stack candles wall-to-wall, filling the room
+  if (t >= 4.2) {
+    cap = 'Stacked wall to wall — bliss 😌';
+    const cols = 15, rows = 4, total = cols * rows;
+    const shown = Math.min(Math.floor(((t - 4.2) / 3.6) * total), total);
+    for (let i = 0; i < shown; i++) {
+      const col = i % cols, row = (i / cols) | 0;
+      const x = 6 + col * 9;
+      const y = 74 - row * 11;
+      drawMiniJar(c, x, y, WAX_COLORS[(col + row) % WAX_COLORS.length]);
+    }
+  }
+
+  // nurse on the right, leaning to smell — drawn last so she stays in front
+  const lean = (t >= 2 && t < 4.2) ? 1 : 0;
+  drawNurse(c, 138 - lean * 4, 88, lean ? 1 : 0, false);
+  cutCap.textContent = cap;
+}
+
+let _lastPopStep = -1;
+function playCutscene(idx) {
+  return new Promise(resolve => {
+    initAudio();
+    cutEl.classList.add('show');
+    const dur = idx === 0 ? 8.6 : 9.2;
+    const draw = idx === 0 ? drawSceneA : drawSceneB;
+    const start = performance.now();
+    let raf, done = false; _lastPopStep = -1;
+    function finish() {
+      if (done) return; done = true;
+      cancelAnimationFrame(raf);
+      cutEl.classList.remove('show');
+      cutSkip.onclick = null;
+      resolve();
+    }
+    cutSkip.onclick = finish;
+    function loop(now) {
+      const t = (now - start) / 1000;
+      cutCtx.clearRect(0, 0, 160, 120);
+      draw(cutCtx, t);
+      // sparse pops as things happen
+      const step = Math.floor(t * 2);
+      if (idx === 1 && t >= 4.2 && step !== _lastPopStep) { _lastPopStep = step; playPop(); }
+      if (t >= dur) { finish(); return; }
+      raf = requestAnimationFrame(loop);
+    }
+    raf = requestAnimationFrame(loop);
+  });
+}
+
+/* ------------------------------------------------------------------ *
+ *  BOOT
+ * ------------------------------------------------------------------ */
+document.getElementById('restart-btn').addEventListener('click', () => { initAudio(); setupLevel(state.n, state.attempt); });
+
+// hold-to-reset: fills over 5s; completing the fill resets to Level 1
+const resetBtn = document.getElementById('reset-hold');
+const resetFill = resetBtn.querySelector('.reset-fill');
+const resetSub = resetBtn.querySelector('.reset-sub');
+let resetArmed = false;
+function startHold(e) {
+  e.preventDefault();
+  initAudio();
+  resetArmed = true;
+  resetBtn.classList.add('holding');
+  resetSub.textContent = 'keep holding…';
+}
+function cancelHold() {
+  resetArmed = false;
+  resetBtn.classList.remove('holding');
+  resetSub.textContent = 'hold 5s';
+}
+resetBtn.addEventListener('pointerdown', startHold);
+resetBtn.addEventListener('pointerup', cancelHold);
+resetBtn.addEventListener('pointerleave', cancelHold);
+resetBtn.addEventListener('pointercancel', cancelHold);
+resetFill.addEventListener('transitionend', (e) => {
+  if (e.propertyName === 'width' && resetArmed) {
+    cancelHold();
+    hideToast();
+    state.total = 0;
+    setupLevel(1, 1);
+    showToast('Reset to Level 1 🕯️', 'A fresh, calm start');
+    setTimeout(hideToast, 1600);
+  }
+});
+
+setupLevel(1, 1);
+</script>
+</body>
+</html>
